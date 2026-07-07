@@ -1,6 +1,6 @@
 # Default configuration for HTTP (port 80)
 # To use a custom domain (e.g. yourdomain.com), replace ":80" with "yourdomain.com, www.yourdomain.com"
-v2v-internship-2026.aicodon.in {
+v2v-internship-assignment.aicodon.in {
     encode gzip
 
     # Proxy backend routes to the Python Reflex backend (port 8000)
