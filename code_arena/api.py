@@ -61,11 +61,11 @@ def export_results(token: str = Query(default="")):
     ws = wb.active
     ws.title = "Results"
 
-    header = ["Student name"] + [t.get("name", "") for t in tests]
+    header = ["Student name", "Mode"] + [t.get("name", "") for t in tests]
     ws.append(header)
 
     for u in students:
-        row = [u.get("name", u.get("email", ""))]
+        row = [u.get("name", u.get("email", "")), u.get("mode", "")]
         for t in tests:
             row.append(grade_map.get((u["$id"], t["$id"]), ""))
         ws.append(row)

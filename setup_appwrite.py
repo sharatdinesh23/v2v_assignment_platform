@@ -59,6 +59,7 @@ def main() -> None:
     _ignore_conflict(db.create_string_attribute, dbid, settings.users_collection, "email", 255, True)
     _ignore_conflict(db.create_string_attribute, dbid, settings.users_collection, "name", 255, False)
     _ignore_conflict(db.create_string_attribute, dbid, settings.users_collection, "role", 32, True)
+    _ignore_conflict(db.create_string_attribute, dbid, settings.users_collection, "mode", 32, False)
     _ignore_conflict(db.create_string_attribute, dbid, settings.users_collection, "password_hash", 255, True)
     _ignore_conflict(db.create_integer_attribute, dbid, settings.users_collection, "created_at", False)
     _ignore_conflict(db.create_index, dbid, settings.users_collection, "email_idx", "unique", ["email"])

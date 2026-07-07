@@ -493,6 +493,13 @@ def _add_student_dialog() -> rx.Component:
                     on_change=AdminState.set_s_name,
                     width="100%",
                 ),
+                rx.text("Mode", size="2", weight="medium"),
+                rx.select(
+                    ["online", "offline"],
+                    value=AdminState.s_mode,
+                    on_change=AdminState.set_s_mode,
+                    width="100%",
+                ),
                 spacing="2",
                 width="100%",
             ),
@@ -641,6 +648,7 @@ def _student_row(s: dict) -> rx.Component:
     return rx.table.row(
         rx.table.cell(s["name"]),
         rx.table.cell(s["email"]),
+        rx.table.cell(s.get("mode", "")),
         rx.table.cell(
             rx.button(
                 rx.icon("user-minus", size=14),
@@ -677,15 +685,51 @@ def _students_section() -> rx.Component:
             ),
             rx.cond(
                 AdminState.has_students,
-                rx.table.root(
-                    rx.table.header(
-                        rx.table.row(
-                            rx.table.column_header_cell("Name"),
-                            rx.table.column_header_cell("Email"),
-                            rx.table.column_header_cell(""),
-                        )
+                rx.vstack(
+                    rx.grid(
+                        rx.input(
+                            placeholder="Filter by name...",
+                            value=AdminState.filter_student_name,
+                            on_change=AdminState.set_filter_student_name,
+                            size="1",
+                            width="100%",
+                        ),
+                        rx.input(
+                            placeholder="Filter by email...",
+                            value=AdminState.filter_student_email,
+                            on_change=AdminState.set_filter_student_email,
+                            size="1",
+                            width="100%",
+                        ),
+                        rx.select(
+                            ["all", "online", "offline"],
+                            placeholder="Filter by mode...",
+                            value=AdminState.filter_student_mode,
+                            on_change=AdminState.set_filter_student_mode,
+                            size="1",
+                            width="100%",
+                        ),
+                        columns="1 3",
+                        spacing="2",
+                        width="100%",
+                        margin_bottom="0.5rem",
                     ),
-                    rx.table.body(rx.foreach(AdminState.students, _student_row)),
+                    rx.cond(
+                        AdminState.has_filtered_students,
+                        rx.table.root(
+                            rx.table.header(
+                                rx.table.row(
+                                    rx.table.column_header_cell("Name"),
+                                    rx.table.column_header_cell("Email"),
+                                    rx.table.column_header_cell("Mode"),
+                                    rx.table.column_header_cell(""),
+                                )
+                            ),
+                            rx.table.body(rx.foreach(AdminState.filtered_students, _student_row)),
+                            width="100%",
+                        ),
+                        rx.text("No students match the current filters.", color="var(--gray-10)", size="2"),
+                    ),
                     width="100%",
                 ),
                 rx.text("No students yet.", color="var(--gray-10)", size="2"),
@@ -759,15 +803,44 @@ def admin_dashboard() -> rx.Component:
                 _admin_submissions_list_view(),
                 # Level 1: Normal dashboard (Students, Tests, Assignments list)
                 rx.vstack(
-                    rx.grid(
-                        _tests_section(),
-                        _students_section(),
-                        columns="1 1",
-                        spacing="4",
+                    _tests_section(),
+                    rx.accordion.root(
+                        rx.accordion.item(
+                            rx.accordion.header(
+                                rx.accordion.trigger(
+                                    rx.hstack(
+                                        rx.icon("users", size=18),
+                                        rx.heading("Students", size="3"),
+                                        align="center",
+                                        spacing="2",
+                                    )
+                                )
+                            ),
+                            rx.accordion.content(
+                                rx.box(_students_section(), padding_top="0.5rem")
+                            ),
+                            value="students",
+                        ),
+                        rx.accordion.item(
+                            rx.accordion.header(
+                                rx.accordion.trigger(
+                                    rx.hstack(
+                                        rx.icon("clipboard-list", size=18),
+                                        rx.heading("Assignments & Grading", size="3"),
+                                        align="center",
+                                        spacing="2",
+                                    )
+                                )
+                            ),
+                            rx.accordion.content(
+                                rx.box(_submissions_section(), padding_top="0.5rem")
+                            ),
+                            value="assignments",
+                        ),
+                        type="multiple",
+                        default_value=["students", "assignments"],
                         width="100%",
-                        display_mobile="block",
                     ),
-                    _submissions_section(),
                     spacing="4",
                     width="100%",
                 ),

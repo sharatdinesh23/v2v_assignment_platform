@@ -165,6 +165,7 @@ def create_user(
     password: str,
     name: str,
     role: str = Role.STUDENT,
+    mode: Optional[str] = None,
 ) -> dict[str, Any]:
     email = email.strip().lower()
     if get_user_by_email(email):
@@ -173,6 +174,7 @@ def create_user(
         "email": email,
         "name": name or email,
         "role": role,
+        "mode": mode,
         "password_hash": hash_password(password),
         "created_at": int(time.time()),
     }

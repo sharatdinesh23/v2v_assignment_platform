@@ -55,7 +55,13 @@ class AdminState(AuthState):
     show_student_dialog: bool = False
     s_email: str = ""
     s_name: str = ""
+    s_mode: str = "online"
     show_bulk_student_dialog: bool = False
+
+    # --- student filter fields ------------------------------------------
+    filter_student_name: str = ""
+    filter_student_email: str = ""
+    filter_student_mode: str = "all"
 
     # --- review properties ----------------------------------------------
     show_review_dialog: bool = False
@@ -99,8 +105,20 @@ class AdminState(AuthState):
     def set_s_name(self, value: str):
         self.s_name = value
 
+    def set_s_mode(self, value: str):
+        self.s_mode = value
+
     def set_review_final_grade(self, value: str):
         self.review_final_grade = value
+
+    def set_filter_student_name(self, value: str):
+        self.filter_student_name = value
+
+    def set_filter_student_email(self, value: str):
+        self.filter_student_email = value
+
+    def set_filter_student_mode(self, value: str):
+        self.filter_student_mode = value
 
     # ---------------------------------------------------------------
     # Loading
@@ -109,6 +127,9 @@ class AdminState(AuthState):
         guard = self.require_admin()
         if guard is not None:
             return guard
+        self.filter_student_name = ""
+        self.filter_student_email = ""
+        self.filter_student_mode = "all"
         return AdminState.refresh_all
 
     def refresh_all(self):
@@ -132,6 +153,7 @@ class AdminState(AuthState):
                     "id": u["$id"],
                     "name": u.get("name", ""),
                     "email": u.get("email", ""),
+                    "mode": u.get("mode", ""),
                 }
                 for u in db.list_users(role=Role.STUDENT)
             ]
@@ -242,6 +264,31 @@ class AdminState(AuthState):
     @rx.var
     def has_filtered_submissions(self) -> bool:
         return len(self.filtered_submissions) > 0
+
+    @rx.var
+    def filtered_students(self) -> list[dict]:
+        res = self.students
+        
+        # 1. Filter by Name (case-insensitive)
+        name_q = self.filter_student_name.strip().lower()
+        if name_q:
+            res = [s for s in res if name_q in s.get("name", "").lower()]
+            
+        # 2. Filter by Email (case-insensitive)
+        email_q = self.filter_student_email.strip().lower()
+        if email_q:
+            res = [s for s in res if email_q in s.get("email", "").lower()]
+            
+        # 3. Filter by Mode (online / offline)
+        mode_q = self.filter_student_mode.strip().lower()
+        if mode_q and mode_q != "all":
+            res = [s for s in res if s.get("mode", "").lower() == mode_q]
+            
+        return res
+
+    @rx.var
+    def has_filtered_students(self) -> bool:
+        return len(self.filtered_students) > 0
 
     # ---------------------------------------------------------------
     # Review Workspace Logic (similar to StudentState)
@@ -368,11 +415,12 @@ class AdminState(AuthState):
 
     def export_results(self):
         """Mint a fresh short-lived token and trigger the Excel download."""
+        from rxconfig import config
         token = make_export_token()
-        url = f"/api/export/results.xlsx?token={token}"
-        # Opening the attachment URL downloads the file without navigating away.
+        api_url = config.api_url
+        url = f"{api_url}/api/export/results.xlsx?token={token}"
         logger.info(f"Admin {self.user_email} exported test results sheet.")
-        return rx.call_script(f"window.open('{url}', '_blank')")
+        return rx.call_script(f"window.location.href = '{url}'")
 
     def delete_test(self, test_id: str):
         try:
@@ -389,6 +437,7 @@ class AdminState(AuthState):
     # ---------------------------------------------------------------
     def open_student_dialog(self):
         self.s_email = self.s_name = ""
+        self.s_mode = "online"
         self.show_student_dialog = True
 
     def close_student_dialog(self):
@@ -418,6 +467,7 @@ class AdminState(AuthState):
 
                 name_idx = -1
                 email_idx = -1
+                mode_idx = -1
                 for idx, val in enumerate(header_row):
                     if val:
                         val_lower = str(val).strip().lower()
@@ -425,6 +475,8 @@ class AdminState(AuthState):
                             name_idx = idx
                         elif "email" in val_lower:
                             email_idx = idx
+                        elif "mode" in val_lower:
+                            mode_idx = idx
 
                 # Fallbacks
                 if name_idx == -1 or email_idx == -1:
@@ -440,12 +492,16 @@ class AdminState(AuthState):
                         continue
                     name_val = row[name_idx]
                     email_val = row[email_idx]
+                    mode_val = row[mode_idx] if mode_idx != -1 and len(row) > mode_idx else None
 
                     if not email_val:
                         continue
 
                     name = str(name_val).strip() if name_val else ""
                     email = str(email_val).strip().lower()
+                    mode = str(mode_val).strip().lower() if mode_val else "online"
+                    if mode not in ["online", "offline"]:
+                        mode = "online"
 
                     if not name:
                         name = email.split("@")[0]
@@ -456,10 +512,11 @@ class AdminState(AuthState):
                             email=email,
                             password=email,
                             name=name,
-                            role=Role.STUDENT
+                            role=Role.STUDENT,
+                            mode=mode,
                         )
                         success_count += 1
-                        logger.info(f"Created student account: '{email}' (Name: '{name}') via Excel import.")
+                        logger.info(f"Created student account: '{email}' (Name: '{name}', Mode: '{mode}') via Excel import.")
                     except Exception as exc:
                         fail_count += 1
                         logger.warning(f"Failed to create student account '{email}' via Excel: {exc}")
@@ -496,6 +553,7 @@ class AdminState(AuthState):
                 password=email,
                 name=self.s_name or email,
                 role=Role.STUDENT,
+                mode=self.s_mode,
             )
         except (TypeError, ValueError, RuntimeError) as exc:  # noqa: BLE001
             self.status_msg = f"Could not add student: {exc}"

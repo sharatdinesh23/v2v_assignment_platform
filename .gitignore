@@ -24,3 +24,4 @@ logs/
 *.md
 create_user_script.py
 setup_appwrite.py
+import_students_script.py
