@@ -22,3 +22,5 @@ reflex.db
 tests/
 logs/
 *.md
+create_user_script.py
+setup_appwrite.py
