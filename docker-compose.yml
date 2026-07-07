@@ -1,0 +1,12 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        - API_URL=${API_URL}
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: always
+    env_file:
+      - .env
